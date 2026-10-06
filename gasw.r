@@ -1,0 +1,504 @@
+# asset swap calculator
+
+bigasw <- function(cCodes = cl, years = 1, numPCs = 3, sighl = 6) {
+    # cross markets asset swap comparator
+    # numPCs -> number of PCs to regress against for residuals. Any number from 0 upwards. 0 = no PC removal
+    # years -> how many years of data (max)
+    flushprint("calculating")
+    asw <- lapply(cCodes, function(x) aa <- getasw(x, years))
+    names(asw) <- cCodes
+    if(length(cCodes) > 1) {
+        isins <- do.call(c, sapply(asw, colnames)) # get isins
+    } else {
+        isins <- as.character(colnames(asw[[1]]))
+    }
+    # insert human column names
+    asw <- lapply(cCodes, function(x) {
+                      aa <- asw[[x]] 
+                      colnames(aa) <- isinLabel(x, colnames(aa), seper = "_"); 
+                      aa
+    })
+    asw <- do.call(cbind, asw)
+    asw <- asw * 10000
+    #bad data points
+    naughtylist <- list("2017-07-11" = c("DE_0.5_15Aug27")) 
+    for(d in names(naughtylist)) {
+        if(as.Date(d) %in% index(asw)) {
+            if(naughtylist[[d]] %in% colnames(asw)) {
+                asw[as.Date(d), naughtylist[[d]]] <- NA
+            }
+        }
+    }
+    nona_asw <- asw[, apply(asw, 2, function(x) all(!is.na(x)))] # must have minimum good data
+    nona_asw <- na.locf(nona_asw)  
+    correls <- cor(nona_asw)
+    eig <- eigen(correls)
+    pcs <- nona_asw %*% eig$vectors[, 1:numPCs]
+    nona_aswr <- diffret(nona_asw)
+    correlsr <- cor(nona_aswr)
+    eigr <- eigen(correlsr)
+    pcsr <- nona_aswr %*% eigr$vectors[, 1:numPCs]
+    cpcs <- getPCAs(cCodes = cCodes, series = T, days = years * 265, usedecay = F)
+    resids <- lapply(0:numPCs, function(x) {
+        if(x == 0) {           # then regress against ones
+            thisPCs <- rep(1, nrow(pcs))
+        } else {
+            thisPCs <- pcs[, 1:x]
+        }
+        apply(asw, 2, function(xx) lm(xx ~ thisPCs)$residuals)
+    })
+    zs <- lapply(resids, function(x) {
+        sapply(x, function(xx) last(xx) / sd(xx))
+    })
+    sigs <- lapply(resids, function(x) {
+        sapply(x, function(xx) {
+            if(length(xx) < 30) {
+                0
+            } else {
+                quicksimsig(xx, 30, sighl)
+            }
+        })
+    })
+    return(list(asw = asw, nona_asw = nona_asw, 
+                resids = resids, asw = asw, zs = zs, sigs = sigs, eig = eig, pcs = pcs, pcsr = pcsr, cpcs = cpcs, 
+                nona_aswr = nona_aswr, correlsr = correlsr, eigr = eigr, isins = isins))
+}
+
+
+seekbox <- function(bigaswobj, trendcor = 0.8, retcor = 0.8, minz = 2.25, minbps = 5, 
+                    mindata = 60, numclusts = 6, numperclust = 10, specific = NULL, specificweights = NULL, dv01neutral = F, 
+                    usereturns = T, sighowmany = 20, sigdecayhl = 6, sigwindowl = 30, asw_correl_bounds = NA,
+                    country_correl_bounds = NA, coupon_diff_max = NULL) {
+    asw <- bigaswobj$asw[, apply(bigaswobj$asw, 2, function(x) sum(!is.na(x)) > mindata)]
+    aswr <- diffret(asw)
+    corasw <- cor(asw, use = "pairwise.complete.obs")
+    coraswr <- cor(aswr, use = "pairwise.complete.obs")
+    if(is.null(specific)) {
+        good <- melt((corasw > trendcor) & (coraswr > retcor)) # this is key
+        good <- good[good[, 3], ]
+        good <- good[apply(good, 1, function(x) x[1] != x[2]), ]
+        good <- unique(t(apply(good, 1, function(x) x[1:2][order(x[1:2])]))) # uniques only
+        # limit coupon differences if requested
+        if(!is.null(coupon_diff_max)) {
+            coup1 <- sapply(good[, 1], function(x) as.numeric(strsplit(x, "_")[[1]][2]))
+            coup2 <- sapply(good[, 2], function(x) as.numeric(strsplit(x, "_")[[1]][2]))
+            good <- good[abs(coup1 - coup2) <= coupon_diff_max, ]
+        }
+    } else {
+        good <- t(matrix(colnames(bigaswobj$asw)[bigaswobj$isins %in% specific])) # good = given specific
+        minz <- 0 # so that we don't chop them out later
+        minbps <- 0 # ditto
+    }
+    # now flip relevant maturities so lower first
+    good <- t(apply(good, 1, function(x) {
+        mat1 <- as.Date(substr(x[1], nchar(x[1]) -6, nchar(x[1])), "%d%B%y")
+        mat2 <- as.Date(substr(x[2], nchar(x[2]) -6, nchar(x[2])), "%d%B%y") 
+        if(mat2 < mat1) {
+            rev(x)
+        } else {
+            x
+        }
+    }))
+    # have found viable boxes, now let's see which ones have good zs
+    zs <- apply(good, 1, function(x) {
+        bond1 <- na.omit(asw[, x[1]])
+        bond2 <- na.omit(asw[, x[2]])
+        minlen <- min(length(bond1), length(bond2))
+        bond1 <- last(bond1, minlen)
+        bond2 <- last(bond2, minlen)
+        bond1r <- diffret(bond1)
+        bond2r <- diffret(bond2)
+        if(is.null(specificweights)) {
+            coeff2 <- 1
+            if(dv01neutral) {
+                coeff1 <- -1
+            } else {
+                if(usereturns) {
+                    linmod <- orthlm(bond2r ~ bond1r)
+                } else {
+                    linmod <- orthlm(bond2 ~ bond1)
+                }
+                coeff1 <- -linmod$coefficients[-1]
+            }
+            coeff2 <- coeff2 / abs(coeff1)
+            coeff1 <- coeff1 / abs(coeff1)
+        } else {
+            coeff1 <- specificweights[1]
+            coeff2 <- specificweights[2]
+        }
+        res <- bond2 * coeff2 + bond1 * coeff1
+        zed <- (last(res) - mean(res)) / sd(res)
+        if((zed < 0) &(is.null(specificweights))) {
+
+            coeff1 <- -coeff1
+            coeff2 <- -coeff2
+            res <- -res
+            zed <- -zed
+        }
+        resr <- diffret(res)
+        bps <- last(res) - mean(res)
+        label = paste(round(coeff1, 2), " * ", x[1], " vs ", round(coeff2, 2), " * ", x[2], "  z-score: ", round(as.numeric(zed), 2), 
+                      "  bps: ", round(abs(bps)), ifelse(usereturns, " (returns)", " (series)"), sep = "")
+        list(zed = zed, res = res, resr = resr, bond1 = bond1, bond2 = bond2, bondname1 = x[1], bondname2 = x[2], 
+             coeffs = c(coeff1, coeff2), bps = bps, label = label)
+    })
+    # pare down to minz and minbps
+    zs <- zs[sapply(zs, function(x) abs(x$zed) > minz)] # chop out all low zs
+    if(length(zs) > 0) {
+        zs <- zs[sapply(zs, function(x) abs(x$bps) > minbps)] # chop out all low bps
+    }
+    # now add signaliser 
+    zs <- lapply(zs, function(x) {
+        sigs <- rollapply(x$resr, length(x$resr) - sighowmany, function(s) quicksimsig(s, sigwindowl, sigdecayhl))
+        sigs <- c(rep(NA, length(x$res) - length(sigs)), as.numeric(sigs))
+        x[["sigs"]] <- sigs
+        return(x)
+    })
+    pccorrels <- t(sapply(zs, function(x) {
+        if(usereturns) {
+            cor(last(bigaswobj$pcsr[, 1:min(4, ncol(bigaswobj$pcsr))], length(x$resr)), x$resr)
+        } else {
+            cor(last(bigaswobj$pcs[, 1:min(4, ncol(bigaswobj$pcsr))], length(x$res)), x$res)
+        }
+    }))
+    if(!is.na(country_correl_bounds)) {
+        # if country correlation bounds have been specified, then we need all the country codes for correlations
+        ccodes <- colnames(bigaswobj$cpcs$pc1)
+        ccodes <- ccodes[-length(ccodes)] # takeout "ALL" country code
+        if(!all(names(country_correl_bounds) %in% ccodes)) {
+            flushprint("You have specified a country correlation bound for an country which is not included")
+            flushprint("in the bigaswobj that you passed to this function. Unable to proceed.")
+            return(-3)
+        }
+    }
+    cpccorrels <- lapply(zs, function(x) {
+        if(is.na(country_correl_bounds)) {
+            # country codes only for the bonds in this asw 
+            ccodes <- unique(c(substr(colnames(x$bond1), 1, 2), substr(colnames(x$bond2), 1, 2)))
+        } 
+        if(usereturns) {
+            pc1correls <- cor(last(diffret(bigaswobj$cpcs$pc1[, ccodes]), nrow(x$resr)), x$resr)
+            pc2correls <- cor(last(diffret(bigaswobj$cpcs$pc2[, ccodes]), nrow(x$resr)), x$resr)
+        } else {
+            pc1correls <- cor(last(bigaswobj$cpcs$pc1[, ccodes], nrow(x$res)), x$res)
+            pc2correls <- cor(last(bigaswobj$cpcs$pc2[, ccodes], nrow(x$res)), x$res)
+        }
+        df <- data.frame(PC1 = as.numeric(pc1correls), PC2 = as.numeric(pc2correls))
+        rownames(df) <- ccodes
+        melt(t(df))
+    })
+    # check for asset swap principal component correlation restrictions
+    if(!is.na(asw_correl_bounds)) {
+        if(length(asw_correl_bounds) < 4) {
+            flushprint("asw_correl_bounds must be specified for all four principal components")
+            flushprint("example: aswap_browser(bb, asw_correl_bounds = list(c(-1, 1), c(-0.2, 0.2), c(-1, 1), c(-1, 1))")
+            return(-1)
+        }
+        if(!all(sapply(asw_correl_bounds, length) == c(2, 2, 2, 2))) {
+            flushprint("Need two bounds per principal component")
+            flushprint("example: aswap_browser(bb, asw_correl_bounds = list(c(-1, 1), c(-0.2, 0.2), c(-1, 1), c(-1, 1))")
+            return(-2)
+        }
+        correlup <- sapply(asw_correl_bounds, function(x) x[2])
+        correldown <- sapply(asw_correl_bounds, function(x) x[1])
+        # update all variable sets
+        pcsel <- apply(pccorrels, 1, function(x) all(x <= correlup))
+        pcsel <- pcsel & apply(pccorrels, 1, function(x) all(x >= correldown))
+        # update all variable sets
+        zs <- zs[pcsel]
+        pccorrels <- pccorrels[pcsel, , drop = FALSE]
+        cpccorrels <- cpccorrels[pcsel]
+    }
+    # check for country correlation restrictions
+    if(!is.na(country_correl_bounds)) {
+        if(!("list" %in% class(country_correl_bounds))) {
+            flushprint("the country correlation bounds must be in the form of a list as follows:")
+            flushprint("seekbox(bb, country_correl_bounds = list(DE = list(PC1 = c(-0.5, 0.5), ")
+            flushprint("PC2 = c(-0.2, 0.2)), FR = ....etc")
+        }
+        sel <- sapply(cpccorrels, function(x) {
+            country_conds <- sapply(names(country_correl_bounds), function(y) {
+                thispc1 <- x[x$Var1 == "PC1" & x$Var2 == y, "value"]
+                thispc2 <- x[x$Var1 == "PC2" & x$Var2 == y, "value"]
+                cond1 <- thispc1 < country_correl_bounds[[y]][["PC1"]][2] 
+                cond2 <- thispc1 > country_correl_bounds[[y]][["PC1"]][1] 
+                cond3 <- thispc2 < country_correl_bounds[[y]][["PC2"]][2] 
+                cond4 <- thispc2 > country_correl_bounds[[y]][["PC2"]][1] 
+        # update all variable sets
+
+                cond5 <- -thispc1 > -country_correl_bounds[[y]][["PC1"]][2] 
+                cond6 <- -thispc1 < -country_correl_bounds[[y]][["PC1"]][1] 
+                cond7 <- -thispc2 > -country_correl_bounds[[y]][["PC2"]][2] 
+                cond8 <- -thispc2 < -country_correl_bounds[[y]][["PC2"]][1] 
+
+                (cond1 & cond2 & cond3 & cond4) | (cond5 & cond6 & cond7 & cond8)
+            })
+            all(country_conds)
+        })
+        # update all variable sets
+        # update all variable sets
+        zs <- zs[sel]
+        pccorrels <- pccorrels[sel, , drop = FALSE]
+        cpccorrels <- cpccorrels[sel]
+    }
+    if(length(zs) > (numclusts + 1)) {
+        clust <- hclust(dist(cor(do.call(cbind, lapply(zs, function(x) x$resr)), use = "pairwise.complete.obs")))
+        clusters <- cutree(clust, numclusts)
+        score <- cbind(sapply(zs, function(x) x$zed), sapply(zs, function(x) x$bps), sapply(zs, function(x) last(x$sigs)))
+        # scale zs and bps and move up so min is zero each time, then add them for final score. 
+        score <- (scale(score[, 1]) + abs(min(scale(score[, 1])))) +  
+                 (scale(score[, 2]) + abs(min(scale(score[, 2])))) +
+                 (scale(score[, 3]) + abs(min(scale(score[, 3]))))
+        if(any(score < 0)) {
+            flushprint("score < 0 because bps and z may have opposite sign")
+            browser()
+        }
+        # order by cluster but also limit size of each cluster
+        orderer <- data.frame(idx = 1:length(zs), cluster = clusters, score = score)
+        orderer <- split(orderer, orderer$cluster)
+        orderer <- lapply(orderer, function(x) {
+            y <- x[order(x$score, decreasing = T), ]
+            return(first(y, numperclust))
+        })
+        ordr <- na.omit(do.call(rbind, orderer)$idx)
+        zs <- zs[ordr]
+        pccorrels <- pccorrels[ordr, ]
+        clusters <- clusters[ordr]
+        cpccorrels <- cpccorrels[ordr]
+    } else {
+        clusters <- rep(1, length(zs)) 
+    }
+    graphcols <- brewer.pal(numclusts, "Dark2")
+    if(length(zs) < 1) {
+        cat("no boxes\n")
+        cat("try relaxing criteria")
+    } else {
+        graphs <- lapply(1:length(zs), function(i) {
+            z <- zs[[i]]
+
+            # main line chart
+            d1 <- data.frame(Date = index(z$res), Box = as.numeric(z$res))
+            g1 <- ggplot(d1, aes(x = Date, y = Box))
+            g1 <- g1 + geom_line(colour = graphcols[clusters[i]])
+            g1 <- g1 + geom_point(colour = graphcols[clusters[i]], cex = 1, pch = 19)
+            g1 <- g1 + ggtitle(z$label)
+            g1a <- g1 + theme(plot.title = element_text(size = 8), 
+                              axis.title.x = element_blank(),
+                              axis.title.y = element_blank())
+
+            # correlation to asw PCs barchart
+            d2 <- data.frame(pc = paste("PC", 1:length(pccorrels[i, ]), sep = ""), correl = as.numeric(pccorrels[i, ]))
+            g2 <- ggplot(d2, aes(x = pc, y = correl)) 
+            g2 <- g2 + geom_bar(stat = "identity", colour = graphcols[clusters[i]], fill = graphcols[clusters[i]])
+            g2 <- g2 + scale_y_continuous(limits = c(-1, 1))
+            g2 <- g2 + ggtitle("Correl ASW PCs")
+            g2 <- g2 + theme(plot.title = element_text(size = 8),
+                             axis.title.x = element_blank(),
+                             axis.title.y = element_blank(),
+                             axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+
+            d3 <- cpccorrels[[i]]
+            d3[, 1] <- apply(d3, 1, function(x) paste(x[2], x[1], sep = " "))
+            cols <- sapply(d3$Var2, function(x) cColors[[as.character(x)]])
+            cols <- unique(cols) # then unique
+            names(cols) <- unique(as.character(d3$Var2))
+            g3 <- ggplot(d3, aes(x = as.character(Var1), y = value, fill = Var2))
+            g3 <- g3 + geom_bar(stat = "identity")
+            g3 <- g3 + scale_y_continuous(limits = c(-1, 1))
+            g3 <- g3 + ggtitle("Correl country PCs")
+            g3 <- g3 + scale_fill_manual(values = cols)
+            g3 <- g3 + theme(plot.title = element_text(size = 8), legend.position = "none", 
+                             axis.title.x = element_blank(),
+                             axis.title.y = element_blank(),
+                             axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+            if(!is.na(country_correl_bounds)) g3 <- g3 + theme(axis.text.x = element_text(size = 6)) # smaller
+            gar <- ggarrange(g1a, ggarrange(g2, g3, nrow = 2, ncol = 1), ncol = 2, nrow = 1, widths = c(5, 2))
+            return(gar)
+        })
+        for(g in graphs) {
+            plot(g)
+        }
+    }
+    if(!is.null(specific)) {
+        return(zs[[1]])
+    }
+}
+
+
+aswap_browser <- function(bigaswobj = bigasw(), withboxplots = F, dv01neutral = F, usereturns = T, 
+                          minz = 2.25, minbps = 5, asw_correl_bounds = NA, country_correl_bounds = NA, 
+                          trendcor = 0.8, retcor = 0.8, 
+                          numclusts = 6, numperclust = 7, coupon_diff_max = NULL) {
+    cwd <- getwd()
+    setwd(realhtmlplace)
+    passparams <<- list(bigaswobj = bigaswobj, 
+                        dv01neutral = dv01neutral, 
+                        usereturns = usereturns, 
+                        minz = minz,
+                        minbps = minbps,
+                        country_correl_bounds = country_correl_bounds,
+                        asw_correl_bounds = asw_correl_bounds,
+                        trendcor = trendcor, retcor = retcor,
+                        numclusts = numclusts, numperclust = numperclust,
+                        coupon_diff_max = coupon_diff_max) # pass params to rhtml
+    knit("seekbox.rhtml")
+    browseURL("seekbox.html")
+    setwd(cwd)
+    if(withboxplots) sapply(0:6, function(x) {
+        plot_bigasw(bigaswobj, whichPC = x, tobrowser = T)
+        Sys.sleep(1) # let it appear in the browser
+    })
+    rm(passparams, envir=sys.frame(-1))
+
+}
+
+
+plot_bigasw <- function(bigaswobj, whichPC, tobrowser = T, toshiny = F) {
+    zs <- bigaswobj$zs[[whichPC + 1]]
+    asw <- bigaswobj$asw
+    resids <- bigaswobj$resids[[whichPC + 1]] # because first is zero
+    sigs <- bigaswobj$sigs[[whichPC + 1]]
+    if(tobrowser) {
+        svg(paste(realhtmlplace, "bigasw", whichPC, ".svg", sep = ""), width = 30, height = 20)
+    } else if(toshiny) {
+        # do nothing
+    } else {
+        windows(30, 20)
+    }
+    par(mfrow = c(2, 1))
+    layout(matrix(c(1, 2)), heights = c(3, 1))
+    par(mar = c(1, 1, 1.25, 1), oma = c(3, 3, 3, 3))
+    ccol <- as.character(sapply(colnames(asw), function(x) cColors[[substr(x, 1, 2)]]))
+    b <- boxplot(resids, axes = F, outcex = 1, 
+                 whisklty = "dotted", whiskcol = ccol, boxcol = ccol, medcol = ccol, staplecol = ccol,
+                 outcol = addAlpha("grey", 0.5), outpch = 20)
+    axis(2)
+    abline(h = 0, lty = "dashed", col = "grey")
+    # now signaliser
+    sigs <- scale(sigs) # mean zero sd 1
+    sigs[is.na(sigs)] <- 0
+    sigs <- as.numeric(sigs)
+    pchs <- rep(19, length(resids))
+        # update all variable sets
+    pchs[sigs > 2] <- 24
+    pchs[sigs < -2] <- 25
+    cols <- rep("red", length(resids))
+    cols[sigs > 2] <- "magenta"
+    cols[sigs < -2] <- "cyan3"
+    cexs <- rep(1, length(resids))
+    cexs[sigs > 2] <- sigs[sigs > 2] / 2
+    cexs[sigs < -2] <- abs(sigs[sigs < -2] / 2)
+    points(1:length(resids), as.numeric(sapply(resids, last)), pch = pchs, col = cols, cex = cexs, bg = cols)
+    evenrange <- 1:ncol(asw)
+    yesplot <- (evenrange %% 2) == 0
+    text(evenrange[yesplot], b$stats[1, ][yesplot], paste(colnames(asw)[yesplot], "  "), 
+         srt = 90, cex = 0.7, pos = 2, offset = 0)
+    yesplot <- (evenrange %% 2) != 0
+    text(evenrange[yesplot], b$stats[5, ][yesplot], paste("  ", colnames(asw)[yesplot]), 
+         srt = 90, cex = 0.7, pos = 4, offset = 0)
+        # update all variable sets
+    title(paste("Asset swap spread residuals to ", whichPC, " principal component", ifelse(whichPC == 1, "", "s"), 
+                " (sample ", nrow(asw), " days)", sep = ""), cex.main = 2)
+    legend("topleft", col= c("red", "magenta", "cyan3"), 
+           legend = c("residual spread in bps", "accelerated up", "accelerated down"),
+           pch = c(19, 24, 25))
+    # now zs
+    par(mar = c(1, 1, 1, 1))
+    b <- barplot(zs, col = "grey", names.arg = NA, ylim = c(-7, 7), border = NA)
+    poslabplace <- sapply(zs, function(x) max(x, 0))
+    neglabplace <- sapply(zs, function(x) min(x, 0))
+    yesplot <- (evenrange %% 2) == 0
+    text(b[yesplot], poslabplace[yesplot], paste("  ", colnames(asw)[yesplot]), srt = 90, cex = 0.6, pos = 4, offset = 0)
+    yesplot <- (evenrange %% 2) != 0
+    text(b[yesplot], neglabplace[yesplot], paste(colnames(asw)[yesplot], "  "), srt = 90, cex = 0.6, pos = 2, offset = 0)
+    abline(h = c(-2, 2), col = "grey")
+    title("z-score")
+    if(tobrowser) {
+        dev.off()
+        curdir <- getwd()
+        setwd(realhtmlplace)
+        browseURL(paste("bigasw", whichPC, ".svg", sep = ""))
+        setwd(curdir)
+    }
+}
+
+
+plot_bigasw_pcs <- function(bigaswobj, tobrowser = T, toshiny = F) {
+    if(tobrowser) {
+        svg(paste(realhtmlplace, "bigaswPCs.svg", sep = ""), width = 15, height = 10)
+    } else if(toshiny) {
+        #do nothing
+    } else {
+        windows(15, 10)
+    }
+    par(mfrow = c(2, 3), mar = c(1, 1, 1.25, 1), oma = c(3, 3, 3, 3))
+    ccol <- as.character(sapply(colnames(bigaswobj$nona_aswr), function(x) cColors[[substr(x, 1, 2)]]))
+    eigpercent <- (bigaswobj$eigr$values[1:6] / sum(bigaswobj$eigr$values)) * 100
+    for(i in 1:6) {
+        barplot(as.numeric(bigaswobj$eigr$vectors[, i]), col = ccol, xlab = "", ylab = "", beside = T, border = NA)
+        title(paste("PC", i, " loadings, variance explained: ", round(eigpercent[i]), "%", sep = ""), cex.main = 2)
+    }
+    if(tobrowser) {
+        dev.off()
+        curdir <- getwd()
+        setwd(realhtmlplace)
+        browseURL("bigaswPCs.svg")
+        setwd(curdir)
+    }
+}
+
+aswap_daily <- function(bigaswobj = bigasw()) {
+    pdf(file = paste(dailyplace, "CRVM_asset_swap_daily_", format(Sys.Date(), "%d-%b-%Y"), ".pdf", sep = ""),
+        width = 15,
+        height = 10,
+        pointsize = 7,
+        onefile = T)
+    sapply(0:ncol(bigaswobj$pcs), function(x) plot_bigasw(bigaswobj, x, tobrowser = F, toshiny = T))
+    plot_bigasw_pcs(bigaswobj, tobrowser = F, toshiny = T)
+    dev.off()
+}
+
+
+zbox <- function(mx) {
+# takes matrix-like mx and gives z of every column lm to every other column
+# will naomit if necessary
+    if(is.null(colnames(mx))) {   # if no colnames, use numbers
+        comb <- combn(1:ncol(mx), 2)
+    } else {
+        comb <- combn(colnames(mx), 2)
+    }
+    resids <- apply(comb, 2, function(x) {
+            xx <- as.numeric(na.omit(mx[, x[1]]))
+        # update all variable sets
+            yy <- as.numeric(na.omit(mx[, x[2]]))
+            xx <- tail(xx, length(yy))
+            yy <- tail(yy, length(xx))
+            thislm <- orthlm(yy ~ xx)
+            resid <- thislm$residuals
+            slope <- thislm$coefficients[-1]
+            list(bps = last(resid), z = last(resid) / sd(resid), slope = slope, resids = resid, name1 = x[1], name2 = x[2])
+    })
+    slopes <- sapply(resids, function(x) x$slope)
+    zs <- sapply(resids, function(x) x$z)
+    bps <- sapply(resids, function(x) x$bps)
+    name1 <- sapply(resids, function(x) x$name1)
+    name2 <- sapply(resids, function(x) x$name2)
+    resids <- do.call(cbind, lapply(resids, function(x) x$resids))
+    list(slopes = slopes, zs = zs, bps = bps, name1 = name1, name2 = name2, resids = resids)
+}
+
+
+prep_rtsne <- function(bigaswobj) {
+        # update all variable sets
+    nn <- bigaswobj$nona_asw
+    t(zbox(nn)$resids)
+}
+
+
+
+
+
+
+
+
+

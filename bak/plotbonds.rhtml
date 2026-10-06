@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Plotbonds</title>
+  <style>
+    hr {color: #CD950C; border-color: #CD950C; height: 1px}
+    h1 {font-family:Calibri; color: #FEC00C; font-size: 45px}
+    h2 {font-family:Calibri; color: #FEC00C; font-size: 30px}
+    a:link  {color: #CD950C; font:Calibri; text-decoration:none}
+    a:visited  {color: #CD950C; font:Calibri; text-decoration:none}
+  </style>
+</head>
+<body>
+
+<a name = "Top"> </a>
+<h2>
+  <!--begin.rcode, echo=FALSE, comment = NA
+    cat(paste(">>> CRVM plotbonds:", pbargs$cCode))
+  end.rcode-->
+</h2>
+  <!--begin.rcode, echo=FALSE
+  opts_chunk$set(echo=FALSE, dpi=96, fig.width=9, fig.height=8, warning=FALSE, dev="png", cache = FALSE, comment = NA,
+   fig.path="../figure/")
+    end.rcode-->
+
+    <!--begin.rcode ggplotbonds, echo=FALSE
+    ggplotbonds(cCode = pbargs$cCode, model = pbargs$model, years = pbargs$years, 
+        auctions = pbargs$auctions, specific = pbargs$specific)
+  end.rcode-->
+
+</body>
+</html>
+

@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>CRVM>Real Money</title>
+  <style>
+    hr {color: #0679D6; background-color: #0679D6; height: 1px; border: none; clear: both;}
+    h1 {font-family:"Segoe UI", sans-serif; color: #0679D6; font-size: 60px; font-weight:bold}
+    #h1ns {font-family:"Segoe UI", sans-serif; color: #0679D6; font-size: 60px; font-weight:bold}
+    h2 {font-family:"Segoe UI", sans-serif; color: #0679D6; font-size: 36px; font-weight:normal; 
+        margin: 0.2em 0.1em; float: left;}
+    #portfolio {font-family:"Segoe UI", sans-serif; color: #0679D6; font-size: 60px; font-weight:normal}
+    #smallgreater {font-family:"Segoe UI", sans-serif; color: #0679D6; font-size: 30px; font-weight:normal}
+    a:link  {color: #0679D6; font:"Segoe UI", sans-serif;}
+    a:visited  {color: #0679D6; font: sans-serif;}
+    div {clear: both;}
+
+    .clickable {
+      border-radius: 3em;
+      color: SkyBlue;
+      float: left;
+      clear: right;
+      padding: 0.1em 0.5em;
+      background-color: white;
+      margin-bottom: 0.1em;
+      vertical-align: text-bottom;
+    }
+
+    .clickable:hover {
+      background-color: blue;
+      color: white;
+    }
+
+    .clickable a {
+      display: block;
+      height: 100%;
+      text-align: center;
+      cursor: default;
+    }
+
+    .content {
+      border-color: blue;
+      border-width: 0.1em;
+      border-style: solid;
+      color: blue;
+      clear: both;
+      float: left;
+      padding: 0.25em 0.5em;
+      background-color: white;
+      font-family: "sans-serif";
+      font-size: 10pt;
+      display: none;
+      cursor: default;
+    }
+
+  </style>
+</head>
+<body>
+
+  <script src="jquery-1.11.1.js"></script>
+  <script>
+    $(document).ready(function(){
+        $("#clickable0").click(function(){
+          $("#content0").toggle();
+        });
+        $("#clickable1").click(function(){
+          $("#content1").toggle();
+        });
+        $("#clickable2").click(function(){
+          $("#content2").toggle();
+        });
+        $("#clickable3").click(function(){
+          $("#content3").toggle();
+        });
+        $("#clickable4").click(function(){
+          $("#content4").toggle();
+        });
+        $("#clickable5").click(function(){
+          $("#content5").toggle();
+        });
+        $("#content0").click(function(){
+          $("#content0").toggle();
+        });
+        $("#content1").click(function(){
+          $("#content1").toggle();
+        });
+        $("#content2").click(function(){
+          $("#content2").toggle();
+        });
+        $("#content3").click(function(){
+          $("#content3").toggle();
+        });
+        $("#content4").click(function(){
+          $("#content4").toggle();
+        });
+        $("#content5").click(function(){
+          $("#content5").toggle();
+        });
+    });
+  </script>
+
+
+
+<div id="banner">
+<div style="float: left; width: 10in, color: grey">
+    <a name = "Top"> </a><span id="h1ns">CRVM</span><span id="smallgreater">></span><span id="portfolio">Real Money</span>
+</div>
+</div>
+
+<div id="clickable0" class="clickable">
+  <a>
+    &#8505
+  </a>
+</div>
+
+<div id="content0" class="content">
+    The Computational Relative Value Matrix aims to uncover the opportunities in the relative value movements of european government bond markets. It takes a hierarchical approach, moving from major principal components of the market, through multi-bond curve disjoints within countries, or between countries, and further right down to individual bond relative value. Extensive use is made of visualization charts, as the model is aimed at <i> decision support </i>, and it is a core principle of the model that portfolio managers should be able to see what is happening in the RV markets, rather than being prescribed ideas in an opaque form. For more information on how to use CRVM, please contact the team on +442086054396.
+</div>
+<div id = "main" style="clear: both;">
+    <hr>| <a href="http://www.itcmarkets.com/wp-content/uploads/2014/10/Understanding-CRVM-Real-Money.pdf">
+    Understanding the ITC CRVM model output 
+</a> | <a href="#direction">Directional</a> | <a href="#trisyield">Sector Returns</a> | <a href="#heatmaps">RV Heatmap</a> | <a href="#cdcurves">Country RV curves</a> | <a href="#returns">Returns Analysis</a> |
+<hr><h2> Market Direction</h2>
+
+<div id="clickable1" class="clickable">
+  <a>
+    &#8505
+  </a>
+</div>
+
+<div id="content1" class="content">
+    Principal Components Analysis is a technique for reducing the analytical complexity of high dimensional data sets. It operates on the correlation matrix of a data set, and extracts the driving factors in descending order of importance. Thus portfolio managers are able to focus on the 3-4 factors which typically account for over 95% of the risk associated with a market. In the case below, PCA is applies to the matrix of all country benchmark yields (2y, 3y, 5y, 7y, 10y, 20y and 30y) together. 
+    PC1 represents market level, PC2 represents the peripheral spreads, PC3 represents the market slope, and PC4 represents the market curvature. Note that in single country PCA, PC2 usually represents slope. With CRVM however, spread risk is more important than slope risk, and thus this dominates PC2. Notably also, PC4 for spain and Italy does not represent curvature, but reflects the outperformance of Italy versus Spain when the curvature component in other countries increases. This may be due to the fact that when policy is aggressive enough to see Italian yields lower (after accounting for PCs 1-3), the market tends to become nervous about the sustainability of such policy, to the (marginal) detriment of credibility. 
+    The loadings on the principal components explain how much each maturity in each country contributes to the principal component in question. They help significantly in interpretation of the components. 
+    The major goal of PCA is parsimony of analysis angles, that is, allowing risk takers to focus on the small number of variables that drive markets. Indeed, later on in the CRVM, analyses of relative curve shape or bond cheap/dear will be performed <i> after </i> extracting the effects of principal components. 
+</div>
+
+
+  <!--begin.rcode, echo=FALSE
+  opts_chunk$set(echo=FALSE, dpi=72, warning=FALSE, 
+  dev="bmp", cache = FALSE, 
+  fig.path="figure")
+    end.rcode-->
+
+<!--begin.rcode prepdirection, echo=FALSE, fig.height=8, fig.width=10, message=FALSE
+    g <- suppressWarnings(ggCD("DE", plotit = FALSE, usepcmat = FALSE, scale.unit = TRUE))
+    dd <- suppressWarnings(ggPCs(g))
+end.rcode-->
+
+<!--begin.rcode direction, echo=FALSE, fig.height=8, fig.width=10, message=FALSE
+        suppressWarnings(dd$recentplot)
+        for (x in 1:length(dd$loadplots)) {
+            suppressWarnings(grid.arrange(dd[[2]][[x]], dd[[1]][[x]], 
+            nrow = 2, heights = c(2, 1)))
+            ggstamp(cettime(), x = 0.85, y = 0.97, h = 1)
+        }
+    end.rcode-->
+
+<hr>| <a href="http://www.itcmarkets.com/wp-content/uploads/2013/02/Understanding-CRVM2.pdf">
+    Understanding the ITC CRVM model output 
+</a> | <a href="#direction">Directional</a> | <a href="#trisyield">Sector Returns</a> | <a href="#heatmaps">RV Heatmap</a> | <a href="#cdcurves">Country RV curves</a> | <a href="#returns">Returns Analysis</a> |
+<hr><h2> Yield and total return changes</h2>
+
+<div id="clickable2" class="clickable">
+  <a>
+    &#8505
+  </a>
+</div>
+
+<div id="content2" class="content">
+    For reference purposes, 5-day historic yield and total return changes are shown, based on the average bond move by bucket. Naturally, the shape of the top and bottom charts is different, due to increasing duration with maturity for the total return charts. 
+
+</div>
+
+  <!--begin.rcode trisyield, echo=FALSE, fig.height=3, fig.width=10, message=FALSE
+        tt <- triprep()
+        ttplots <- triplots(tt)
+        suppressWarnings(plot(ttplots$ggyield))
+        ggstamp(cettime())
+    end.rcode-->
+
+  <!--begin.rcode triscash, echo=FALSE, fig.height=3, fig.width=10, message=FALSE
+        suppressWarnings(plot(ttplots$ggbuck))
+    end.rcode-->
+<hr>| <a href="http://www.itcmarkets.com/wp-content/uploads/2013/02/Understanding-CRVM2.pdf">
+    Understanding the ITC CRVM model output 
+</a> | <a href="#direction">Directional</a> | <a href="#trisyield">Sector Returns</a> | <a href="#heatmaps">RV Heatmap</a> | <a href="#cdcurves">Country RV curves</a> | <a href="#returns">Returns Analysis</a> |
+<hr><h2> Heatmap</h2>
+<div id="clickable3" class="clickable">
+  <a>
+    &#8505
+  </a>
+</div>
+
+
+<div id="content3" class="content">
+    This heatmap shows the sectors of each country which are cheap or dear, based on a 2y decay-weighted historical analysis. It provides a rapid overview of market relative value, based on residuals after removal of the major principal components. The chart on the right is equivalent, but provides a 5-day history, allowing portfolio managers a measure of information to judge recent evolution of curve RV, with a view to helping timing.  
+</div>
+
+  <!--begin.rcode heatmaps, echo=FALSE, fig.height=6, fig.width=10, message=FALSE
+    heatmaps <- ggHeat(plotheat = FALSE)
+    heatarrange <- grid.arrange(heatmaps$heatmain, heatmaps$heatevol, ncol = 2)
+    ggstamp(cettime())
+    end.rcode-->
+
+<hr>| <a href="http://www.itcmarkets.com/wp-content/uploads/2013/02/Understanding-CRVM2.pdf">
+    Understanding the ITC CRVM model output 
+</a> | <a href="#direction">Directional</a> | <a href="#trisyield">Sector Returns</a> | <a href="#heatmaps">RV Heatmap</a> | <a href="#cdcurves">Country RV curves</a> | <a href="#returns">Returns Analysis</a> |
+<hr><h2> Country RV Magnifier</h2>
+
+
+<div id="clickable4" class="clickable">
+  <a>
+    &#8505
+  </a>
+</div>
+
+<div id="content4" class="content">
+    In the RV Magnifier charts, we combine the curve sector cheap dear, and individual bond cheap dear, for each country. This should be the main chart used by portfolio managers before they invest in any bond or sector of any country. At a glance, the manager may see whether a sector of the curve is cheap (blue), neutral (yellow), or dear (red). The same colour coding applies to individual bonds. The boxplots behind the bonds show where each bond has traded in the past relative to the curve. The shaded area in the background of the graphic, shows the 1 (dotted white) and 2 (solid white) standard deviation thresholds for curve cheap dear. Please keep in mind that these analyses are performed <i> after </i> extraction of the principal components of the market. In other words, everything in these charts is <i> independent </i> of market level, spread, slope, and curvature. They exist to allow the portfolio manager to extract micro-alpha, independently of positioning in the other market principal components. 
+</div>
+
+  <!--begin.rcode cdcurves, echo=FALSE, fig.height=5.5, fig.width=10, message=FALSE
+    for(x in ac) {
+        g <- ggCD(x, plotit = FALSE, usepcmat = FALSE, scale.unit = TRUE)
+        suppressWarnings(plot(g$cdChart))
+        ggstamp(cettime())
+    }
+    end.rcode-->
+
+
+  <hr>
+
+<hr>| <a href="http://www.itcmarkets.com/wp-content/uploads/2013/02/Understanding-CRVM2.pdf">
+    Understanding the ITC CRVM model output 
+</a> | <a href="#direction">Directional</a> | <a href="#trisyield">Sector Returns</a> | <a href="#heatmaps">RV Heatmap</a> | <a href="#cdcurves">Country RV curves</a> | <a href="#returns">Returns Analysis</a> |
+<hr><h2> Returns analysis</h2>
+
+<div id="clickable5" class="clickable">
+  <a>
+    &#8505
+  </a>
+</div>
+
+<div id="content5" class="content">
+    The following charts show total annualized returns over the coming month, <i> assuming an unchanged yield curve shape </i>. They will be useful to portfolio managers who wish to favour total yield carry and slide as opposed to directional or RV plays. The total returns are shown in conjunction with the instantaneous forward curve (red points) and the yield-to-maturity curve (green points). At points where total return and YTM diverge signficantly, this will be due to roll/slide effects. Note that the instantaneous forward curve is a useful barometer for where peak returns can be obtained, were the curve made up of forward zero coupon rates. If bonds do not match it perfectly, that is because of coupon effects, which are greater at longer maturities and for higher coupons. Please note that total returns are significantly impacted by possible curve moves, and reinvestment risk, neither of which is taken into account here.
+</div>
+
+  <!--begin.rcode returns, echo=FALSE, fig.height=7, fig.width=10, message=FALSE
+    for(x in ac) {
+        runningYield(x)
+    }
+    end.rcode-->
+
+  <!--begin.rcode returns2, echo=FALSE, fig.height=10, fig.width=10, message=FALSE
+    for(x in ac) {
+        g <- runningYieldMap(x)
+        suppressWarnings(plot(g))
+        ggstamp(cettime())
+    }
+    end.rcode-->
+
+
+  <hr>
+
+<div style="float: left; width: 3in"> <img src = "itclogogrey.png"> </div> 
+</div>
+</body>
+>

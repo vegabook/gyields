@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>CRVM/RM</title>
+  <style>
+    hr {color: #CD950C; background-color: #959595; height: 1px; border: none}
+    h1 {font-family:"Segoe UI", sans-serif; color: #FEC00C; font-size: 60px; font-weight:bold}
+    h2 {font-family:"Segoe UI", sans-serif; color: #FEC00C; font-size: 36px; font-weight:normal}
+    #portfolio {font-family:"Segoe UI", sans-serif; color: #FEC00C; font-size: 60px; font-weight:normal}
+    #smallgreater {font-family:"Segoe UI", sans-serif; color: #FEC00C; font-size: 30px; font-weight:normal}
+    a:link  {color: #589DFC; font:"Segoe UI", sans-serif;}
+    a:visited  {color: #589DFC; font:"Segoe UI", sans-serif;}
+  </style>
+</head>
+<body>
+<div id="banner">
+<div style="float: left; width: 10in, color: grey">
+    <a name = "Top"> </a><h1>CRVM</h1><span id="smallgreater">></span><span id="portfolio">Portfolio</span>
+</div>
+</div>
+
+<div id = "main" style="clear: both;">
+<hr>| <a href="http://www.itcmarkets.com/wp-content/uploads/2013/02/Understanding-CRVM2.pdf">
+    Understanding the ITC CRVM model output 
+</a> | <a href="#trisyield">Sector Returns</a> | <a href="#heatmaps">RV Heatmap</a> | <a href="#cdcurves">Country RV curves</a> |
+<hr><h2> Yield and total return changes</h2>
+
+  <!--begin.rcode, echo=FALSE
+  opts_chunk$set(echo=FALSE, dpi=96, warning=FALSE, 
+  dev="bmp", cache = FALSE, fig.path="/data/gyields/figure/")
+    end.rcode-->
+
+  <!--begin.rcode trisyield, echo=FALSE, fig.height=3, fig.width=10, message=FALSE
+        tt <- triprep()
+        ttplots <- triplots(tt)
+        suppressWarnings(plot(ttplots$ggyield))
+    end.rcode-->
+
+  <!--begin.rcode triscash, echo=FALSE, fig.height=3, fig.width=10, message=FALSE
+        suppressWarnings(plot(ttplots$ggbuck))
+    end.rcode-->
+<hr>| <a href="http://www.itcmarkets.com/wp-content/uploads/2013/02/Understanding-CRVM2.pdf">
+    Understanding the ITC CRVM model output 
+</a> | <a href="#trisyield">Sector Returns</a> | <a href="#heatmaps">RV Heatmap</a> | <a href="#cdcurves">Country RV curves</a> |
+<hr><h2> Heatmap</h2>
+  <!--begin.rcode heatmaps, echo=FALSE, fig.height=6, fig.width=10, message=FALSE
+    heatmaps <- ggHeat(plotheat = FALSE)
+    heatarrange <- grid.arrange(heatmaps$heatmain, heatmaps$heatevol, ncol = 2)
+    end.rcode-->
+
+<hr>| <a href="http://www.itcmarkets.com/wp-content/uploads/2013/02/Understanding-CRVM2.pdf">
+    Understanding the ITC CRVM model output 
+</a> | <a href="#trisyield">Sector Returns</a> | <a href="#heatmaps">RV Heatmap</a> | <a href="#cdcurves">Country RV curves</a> |
+<hr><h2> Country RV Magnifier</h2>
+  <!--begin.rcode cdcurves, echo=FALSE, fig.height=5.5, fig.width=10, message=FALSE
+    for(x in ac) {
+        g <- ggCD(x, plotit = FALSE, usepcmat = TRUE)
+        suppressWarnings(plot(g$cdChart))
+    }
+    end.rcode-->
+
+
+  <hr>
+
+<div style="float: left; width: 3in"> <img src = "itclogogrey.png"> </div> 
+</div>
+</body>
+>
