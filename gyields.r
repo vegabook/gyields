@@ -318,7 +318,7 @@ gbpIRStickers <- paste(paste("BPSW", irsmats, sep = ""), "Curncy")
 mc <- c("DE", "FR", "IT", "SP", "GB") # main countries
 #source("../config/gyields.config") # variables specific to different workstations
 ac <- c(mc, "NE", "AS", "BE", "PO", "FI") # all countries
-ac <- ac[!(ac %in% sidebet)] # take out the sidebets
+#ac <- ac[!(ac %in% sidebet)] # take out the sidebets
 em <- c("RU", "TR", "ZA", "PL", "HU", "CZ", "EU", "US", "MX")
 em2 <- c("US", "EU", "ZA", "TR", "PL", "HU", "CZ", "MX")
 gdpweights <- sqrt(as.numeric(gdp2012[ac]))
