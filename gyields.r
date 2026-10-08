@@ -675,7 +675,6 @@ addBonds <- function(cCode, addDate, inList) {
     lapply(names(addList), function(x) if((addDate >= addList[[x]][1]) & (addDate <= addList[[x]][2])) {
         if(!(x %in% inList)) {
             doList <<- unique(append(doList, x))
-            flushprint(paste("manually adding", x))
         }
     })
     return(doList)
