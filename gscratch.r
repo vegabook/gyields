@@ -9,7 +9,6 @@ accruedDropDates <- function(cCode, bondcode, fromisin = F) {
     }
     coupon <- cData$staticData[bondcode, "COUPON"]
     if(coupon == 0) {
-        flushprint("zero coupon")
         return(NULL)
     } else {
         accrued <- cData$historicData$PX_DIRTY_BID[, bondcode] - cData$historicData$PX_BID[, bondcode]
