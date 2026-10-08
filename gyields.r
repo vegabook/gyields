@@ -1277,7 +1277,7 @@ fixIntegrity <- function(cCode) {
 checkIntegrity <- function(cCode, verbose = TRUE, inData = NULL) {
 # this will count the various bits of a country structure to make sure their numbers are the same
 # used mainly on country load
-    if(is.null(inData) {
+    if(is.null(inData)) {
       cData <- get(paste(cCode, "data", sep = ""))
     } else {
       cData <- inData
