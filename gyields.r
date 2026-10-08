@@ -1274,10 +1274,14 @@ fixIntegrity <- function(cCode) {
 }
 
 
-checkIntegrity <- function(cCode, verbose = TRUE) {
+checkIntegrity <- function(cCode, verbose = TRUE, inData = NULL) {
 # this will count the various bits of a country structure to make sure their numbers are the same
 # used mainly on country load
-    cData <- get(paste(cCode, "data", sep = ""))
+    if(is.null(inData) {
+      cData <- get(paste(cCode, "data", sep = ""))
+    } else {
+      cData <- inData
+    }
     # now check integrity
     noCheck <- c("staticData", "cfData", "historicData", "asvHi", "asvLo", "dynHi", "dynLo")
     checknames <- setdiff(names(cData), noCheck)
