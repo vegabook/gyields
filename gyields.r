@@ -1060,6 +1060,7 @@ upCountry <- function(cCode, minmat = minMaturity, useBondChain = FALSE, useLAST
     cData$dynBoth <- append(cData$dynBoth[-length(cData$dynBoth)], dynBoth)  
     # now we do the svs and ns
     flushprint("updating csBoth")
+    browser()
     csBoth <- tryCatch(lightns(lapply(dynBoth, function(x) estim_cs(x, cCode))), error = function() {NA})
     #csBoth <- lightns(dons(dynBoth, meth = "cs", pcores = 8))
     flushprint("updating dlBoth")
